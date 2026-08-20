@@ -1,0 +1,17 @@
+<extension version="1" name="LiebherrReportGenerator">
+  <guid shortid="LiebherrReportGenerator">60b2b664-8c52-4488-8d0b-ab9f31810e55</guid>
+  <script src="AnsysReportGenerator_WPF.py" />
+  <interface context="Mechanical">
+    <images>images</images>
+    <callbacks>
+      <oninit>init</oninit>
+    </callbacks>
+    <toolbar name="LiebherrReportGenerator" caption="Liebherr Report Generator">
+      <entry name="GenerateReport" icon="logo Liebherr Report Generator" caption="Generate Report">
+        <callbacks>
+          <onclick>HighFiveOut</onclick>
+        </callbacks>
+      </entry>
+    </toolbar>
+  </interface>
+</extension>

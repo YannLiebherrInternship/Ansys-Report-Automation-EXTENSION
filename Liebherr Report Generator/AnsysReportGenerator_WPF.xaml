@@ -1,0 +1,1147 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ansys Mechanical - PowerPoint Report Generator (WPF)"
+        Height="900" Width="1480" MinHeight="700" MinWidth="1000"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI" FontSize="13"
+        Background="#EEF0F3"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+
+    <Window.Resources>
+
+        <!-- ================= Palette (light, muted theme, soft colors) ================= -->
+        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#EEF0F3"/>
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#D2D6DE"/>
+        <SolidColorBrush x:Key="SecondaryBackgroundBrush" Color="#E7E9EE"/>
+        <SolidColorBrush x:Key="InputBackgroundBrush" Color="#FAFBFC"/>
+        <SolidColorBrush x:Key="HoverBrush" Color="#E7ECF8"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#008DD5"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#0077B3"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#000000"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#797E8A"/>
+
+        <!-- Border for input controls (checkbox, radio, field, list):
+             slightly more marked than CardBorderBrush so they stay
+             readable/identifiable on the light background (CardBorderBrush is too
+             discreet for an interactive control). -->
+        <SolidColorBrush x:Key="InputBorderBrush" Color="#C7CBD4"/>
+
+        <!-- Solid background of the "Report preview" tab, behind the cards. -->
+        <SolidColorBrush x:Key="PreviewBackgroundBrush" Color="#E6E9EE"/>
+
+        <!-- Compact "Select all" / "Deselect all" buttons: light blue to stay clearly
+             visible on the white card background. -->
+        <SolidColorBrush x:Key="MiniButtonBrush" Color="#BFE4F7"/>
+        <SolidColorBrush x:Key="MiniButtonHoverBrush" Color="#8FCFF0"/>
+        <SolidColorBrush x:Key="MiniButtonBorderBrush" Color="#7CC3E8"/>
+
+        <!-- Custom title bar of the "..." dialogs (chromeless windows,
+             see _build_dialog_shell in AnsysReportGenerator_WPF.py): slightly darker
+             than CardBackgroundBrush to stand out from the window body. -->
+        <SolidColorBrush x:Key="DialogTitleBarBrush" Color="#F0F1F4"/>
+
+        <!-- Diagnostic label (detected ImportLegend unit) in a result's configuration
+             panel: deliberately bright red to stay immediately visible,
+             distinct from normal text. -->
+        <SolidColorBrush x:Key="DiagnosticLabelBrush" Color="#C0504D"/>
+
+        <!-- Background of the "report result" sub-tile (Files tab, borderReportTile)
+             once the report is complete, replaces SecondaryBackgroundBrush. Light green (not the
+             original bright green): the tile is now small and centered, an overly saturated green
+             would be too eye-catching for a simple "done" state. -->
+        <SolidColorBrush x:Key="ReportReadyBackgroundBrush" Color="#BFE8C4"/>
+
+        <!-- Button border (Primary/Secondary): more marked than CardBorderBrush
+             so buttons stand out clearly from the window background, which is
+             very close to SecondaryBackgroundBrush. -->
+        <SolidColorBrush x:Key="ButtonBorderBrush" Color="#AEB4C2"/>
+
+        <!-- Data folder cleanup (Files tab): light, discreet red for the
+             "Clear" button of each tile, bright red for the big "Delete all"
+             button (destructive, global scope) - two visually distinct severity levels. -->
+        <SolidColorBrush x:Key="DangerLightBrush" Color="#F4C7C3"/>
+        <SolidColorBrush x:Key="DangerLightHoverBrush" Color="#EDA9A3"/>
+        <SolidColorBrush x:Key="DangerLightBorderBrush" Color="#D98A83"/>
+        <SolidColorBrush x:Key="DangerStrongBrush" Color="#D9463C"/>
+        <SolidColorBrush x:Key="DangerStrongHoverBrush" Color="#B8362D"/>
+
+        <!-- ================= Base styles ================= -->
+
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        </Style>
+
+        <!-- No Effect (DropShadowEffect): a shadow per card, repeated across dozens of
+             cards/rows, creates a significant rendering cost (bitmap effect) in this host context
+             (Ansys Mechanical, often without dedicated GPU acceleration) - a direct source of the
+             sluggishness noticed (dropdowns that "lag", etc). Simple border, already consistent with
+             the flat/square design used elsewhere. -->
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Margin" Value="6"/>
+        </Style>
+
+        <Style x:Key="CardTitle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+        </Style>
+
+        <!-- ================= Buttons ================= -->
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="BorderBrush" Value="{StaticResource AccentHoverBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="3"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentHoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.5"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="{StaticResource SecondaryBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ButtonBorderBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="3"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Compact "Select all" / "Deselect all" button placed in the header of each selection
+             zone. Dedicated style (not based on SecondaryButton) to have its own light-blue
+             hover state and stay clearly visible on the white card background. -->
+        <Style x:Key="MiniButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource MiniButtonBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="3"
+                                BorderBrush="{StaticResource MiniButtonBorderBrush}" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource MiniButtonHoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- "Clear" button of a cleanup tile (light red, destructive but scoped to a
+             single folder). Based on SecondaryButton to keep the same geometry/typography. -->
+        <Style x:Key="DangerButtonLight" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="Background" Value="{StaticResource DangerLightBrush}"/>
+            <Setter Property="Foreground" Value="#7A1E17"/>
+            <Setter Property="BorderBrush" Value="{StaticResource DangerLightBorderBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="3"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource DangerLightHoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- "Delete all" button (bright red, destructive and global scope - all
+             data folders except legends). Based on PrimaryButton (white, bold text). -->
+        <Style x:Key="DangerButtonStrong" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="{StaticResource DangerStrongBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource DangerStrongHoverBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="3"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource DangerStrongHoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ================= Search field ================= -->
+
+        <Style x:Key="SearchBox" TargetType="TextBox">
+            <Setter Property="Margin" Value="0,10,0,6"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Background" Value="{StaticResource InputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource InputBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Generic TextBox for the "..." dialogs (same colors as SearchBox,
+             without its Margin specific to the position under the "Select all"/"Deselect all"
+             buttons): dialogs place each field themselves via their own explicit Margin. -->
+        <Style x:Key="DialogTextBox" TargetType="TextBox">
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Background" Value="{StaticResource InputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource InputBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ================= Checkbox ================= -->
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Margin" Value="0,0,20,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <StackPanel Orientation="Horizontal" Background="Transparent">
+                            <Border x:Name="Box" Width="16" Height="16" CornerRadius="3"
+                                    Background="{StaticResource InputBackgroundBrush}"
+                                    BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1"
+                                    VerticalAlignment="Center">
+                                <Path x:Name="Check" Data="M2,7 L6,11 L13,3" Stroke="White" StrokeThickness="2"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Visibility="Collapsed"/>
+                            </Border>
+                            <ContentPresenter Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ================= Radio button ================= -->
+
+        <Style TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Margin" Value="0,2,0,2"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <StackPanel Orientation="Horizontal" Background="Transparent">
+                            <Border x:Name="Circle" Width="16" Height="16" CornerRadius="3"
+                                    Background="{StaticResource InputBackgroundBrush}"
+                                    BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1"
+                                    VerticalAlignment="Center">
+                                <Ellipse x:Name="Dot" Width="8" Height="8" Fill="{StaticResource AccentBrush}"
+                                         Visibility="Collapsed"/>
+                            </Border>
+                            <ContentPresenter Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Circle" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="Dot" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ================= Dropdown list ================= -->
+
+        <Style x:Key="ComboBoxItemStyle" TargetType="ComboBoxItem">
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="{StaticResource InputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource InputBorderBrush}"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="ItemContainerStyle" Value="{StaticResource ComboBoxItemStyle}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="Toggle" Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Focusable="False" ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="1" CornerRadius="3">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="20"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Path Grid.Column="1" Data="M0,0 L4,4 L8,0" Stroke="{StaticResource TextMutedBrush}"
+                                                      StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <!-- PopupAnimation="None" (no slide): the instant opening
+                                 is noticeably smoother than the default animation in this host
+                                 context, where the Popup animation made the dropdown feel unresponsive. -->
+                            <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="None">
+                                <Border Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource CardBorderBrush}"
+                                        BorderThickness="1" CornerRadius="3" MaxHeight="240"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                                    <ScrollViewer>
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ================= Scroll bar (thin, no arrow buttons) ================= -->
+        <!-- Implicit style (no x:Key): applies to EVERY scroll bar in the app, including
+             those created internally by the default ScrollViewer (SETTINGS panel, section
+             lists, preview...) - the default Windows scroll bar (~17px, arrow
+             buttons) was hiding part of the content in narrow panels. -->
+
+        <Style x:Key="ThinScrollBarThumb" TargetType="Thumb">
+            <Setter Property="Background" Value="{StaticResource InputBorderBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="3"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource ButtonBorderBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="MinWidth" Value="8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Background="{TemplateBinding Background}">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True" Focusable="False">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False"/>
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource ThinScrollBarThumb}" MinHeight="24"/>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Width" Value="Auto"/>
+                    <Setter Property="Height" Value="8"/>
+                    <Setter Property="MinHeight" Value="8"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ScrollBar">
+                                <Grid Background="{TemplateBinding Background}">
+                                    <Track x:Name="PART_Track" Focusable="False">
+                                        <Track.DecreaseRepeatButton>
+                                            <RepeatButton Command="ScrollBar.PageLeftCommand" Opacity="0" Focusable="False"/>
+                                        </Track.DecreaseRepeatButton>
+                                        <Track.IncreaseRepeatButton>
+                                            <RepeatButton Command="ScrollBar.PageRightCommand" Opacity="0" Focusable="False"/>
+                                        </Track.IncreaseRepeatButton>
+                                        <Track.Thumb>
+                                            <Thumb Style="{StaticResource ThinScrollBarThumb}" MinWidth="24"/>
+                                        </Track.Thumb>
+                                    </Track>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ================= Tabs (vertical, on the left side) ================= -->
+
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="TabStripPlacement" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}"
+                                    BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="0">
+                                <DockPanel LastChildFill="True">
+                                    <!-- Credit card (logo + author), at the bottom of the tab column. The logo
+                                         (see LOGO_PATH in 00_constants.py) is assigned at load time from
+                                         the Python code (ReportGeneratorApp._load_logo) via a DynamicResource
+                                         rather than an x:Name: elements defined inside a ControlTemplate have
+                                         their own NameScope, invisible from self.window.FindName(). -->
+                                    <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource CardBorderBrush}"
+                                            BorderThickness="0,1,0,0" Padding="12,10">
+                                        <StackPanel>
+                                            <Image Source="{DynamicResource SidebarLogoBitmap}" Stretch="Uniform"/>
+                                            <TextBlock Text="Created by Yann Link, Calculation Engineering Intern at Liebherr Components Colmar."
+                                                       FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,8,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <TabPanel x:Name="HeaderPanel" IsItemsHost="True" Margin="0,8,0,8"/>
+                                </DockPanel>
+                            </Border>
+                            <Border Grid.Column="1" Background="{StaticResource WindowBackgroundBrush}"
+                                    BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="0,1,1,1" CornerRadius="0">
+                                <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent" Margin="2"/>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TabItem">
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="0"
+                                BorderThickness="3,0,0,0" BorderBrush="Transparent"
+                                Padding="{TemplateBinding Padding}" Margin="{TemplateBinding Margin}">
+                            <ContentPresenter x:Name="Content" ContentSource="Header"
+                                              HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="False">
+                                <Setter Property="Cursor" Value="Hand"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsSelected" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ================= Slider (opacity) ================= -->
+
+        <Style TargetType="Slider">
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+        </Style>
+
+    </Window.Resources>
+
+    <DockPanel LastChildFill="True" Margin="10">
+
+        <!-- Header -->
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+            <TextBlock Text="PowerPoint Report Generator" Style="{StaticResource SectionHeader}"/>
+            <TextBlock Text="Configure the slides to generate in the tabs below, then launch the generation."
+                       Foreground="{StaticResource TextMutedBrush}"/>
+        </StackPanel>
+
+        <!-- Toolbar -->
+        <Border DockPanel.Dock="Top" Style="{StaticResource CardBorder}" Margin="0,0,0,10">
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="btnDeleteFigures" Content="Delete figures"
+                        Style="{StaticResource SecondaryButton}" Margin="0,0,10,0"/>
+                <Button x:Name="btnResetLegends" Content="Reset legends"
+                        Style="{StaticResource SecondaryButton}" Margin="0,0,10,0"/>
+                <Button x:Name="btnCreateViews" Content="Create basic views"
+                        Style="{StaticResource SecondaryButton}" Margin="0,0,10,0"/>
+                <Button x:Name="btnExport3D" Content="Export to 3D (.avz)"
+                        Style="{StaticResource SecondaryButton}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Bottom of window: action buttons (always visible, regardless of the active tab) -->
+        <Border DockPanel.Dock="Bottom" Margin="0,10,0,0">
+            <DockPanel LastChildFill="False">
+                <Button x:Name="btnClose" Content="Close" Style="{StaticResource SecondaryButton}"
+                        DockPanel.Dock="Right" Margin="10,0,0,0" Width="120"/>
+                <Button x:Name="btnGenerate" Content="Generate report" Style="{StaticResource PrimaryButton}"
+                        DockPanel.Dock="Right" Width="200"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Main content: tabs + global side panel for configuration ("..." of
+             any row, across all tabs - see ReportGeneratorApp._open_config_panel).
+             The panel is hidden (Collapsed, width 0 in the Grid) as long as no row is being
+             configured; it appears on clicking "...", and closes via "Apply"/
+             "Cancel"/the "x" button. -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TabControl Grid.Column="0" Background="Transparent">
+
+            <TabItem Header="01   General slides">
+                <DockPanel Margin="6">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button x:Name="btnCheckAllGeneral" Content="Select all"
+                                Style="{StaticResource SecondaryButton}" Margin="0,0,10,0"/>
+                        <Button x:Name="btnUncheckAllGeneral" Content="Deselect all"
+                                Style="{StaticResource SecondaryButton}"/>
+                    </StackPanel>
+
+                    <TextBlock DockPanel.Dock="Top" Text="Overview slides" Style="{StaticResource CardTitle}"
+                               FontSize="16" Margin="6,0,0,4"/>
+
+                    <UniformGrid DockPanel.Dock="Top" Columns="2" Margin="0,0,0,4">
+                        <Border Style="{StaticResource CardBorder}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox x:Name="chkGeometry" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Geometry slide" Style="{StaticResource CardTitle}"
+                                                   Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="lblGeometryStatus" FontSize="11" TextWrapping="Wrap"
+                                               Foreground="{StaticResource TextMutedBrush}" Margin="42,2,0,0"/>
+                                </StackPanel>
+                                <Button x:Name="btnGeometryView" Grid.Column="1" Content="Settings"
+                                        Style="{StaticResource MiniButton}" VerticalAlignment="Top"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox x:Name="chkMesh" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Mesh slide" Style="{StaticResource CardTitle}"
+                                                   Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="lblMeshStatus" FontSize="11" TextWrapping="Wrap"
+                                               Foreground="{StaticResource TextMutedBrush}" Margin="42,2,0,0"/>
+                                </StackPanel>
+                                <Button x:Name="btnMeshView" Grid.Column="1" Content="Settings"
+                                        Style="{StaticResource MiniButton}" VerticalAlignment="Top"/>
+                            </Grid>
+                        </Border>
+                    </UniformGrid>
+
+                    <UniformGrid Columns="3">
+                        <Border Style="{StaticResource CardBorder}" VerticalAlignment="Top">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="Parts to isolate (geometry)" Style="{StaticResource CardTitle}"/>
+                                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button x:Name="btnZoneCheckGeometryParts" Content="Select all" Style="{StaticResource MiniButton}"/>
+                                    <Button x:Name="btnZoneUncheckGeometryParts" Content="Deselect all" Style="{StaticResource MiniButton}"/>
+                                    <Button x:Name="btnZoneConfigGeometryParts" Content="Configure selection..." Style="{StaticResource MiniButton}" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBox x:Name="searchGeometryParts" DockPanel.Dock="Top" Style="{StaticResource SearchBox}"
+                                         ToolTip="Enter = select the next match and move it to the top of the list"/>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="210">
+                                    <StackPanel x:Name="panelGeometryParts"/>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardBorder}" VerticalAlignment="Top">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="Mesh part to isolate" Style="{StaticResource CardTitle}"/>
+                                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button x:Name="btnZoneCheckMeshParts" Content="Select all" Style="{StaticResource MiniButton}"/>
+                                    <Button x:Name="btnZoneUncheckMeshParts" Content="Deselect all" Style="{StaticResource MiniButton}"/>
+                                    <Button x:Name="btnZoneConfigMeshParts" Content="Configure selection..." Style="{StaticResource MiniButton}" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBox x:Name="searchMeshParts" DockPanel.Dock="Top" Style="{StaticResource SearchBox}"
+                                         ToolTip="Enter = select the next match and move it to the top of the list"/>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="210">
+                                    <StackPanel x:Name="panelMeshParts"/>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardBorder}" VerticalAlignment="Top">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="Analysis context (steps, settings)" Style="{StaticResource CardTitle}"/>
+                                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button x:Name="btnZoneCheckAnalysisContext" Content="Select all" Style="{StaticResource MiniButton}"/>
+                                    <Button x:Name="btnZoneUncheckAnalysisContext" Content="Deselect all" Style="{StaticResource MiniButton}"/>
+                                    <Button x:Name="btnZoneConfigAnalysisContext" Content="Configure selection..." Style="{StaticResource MiniButton}" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBox x:Name="searchAnalysisContext" DockPanel.Dock="Top" Style="{StaticResource SearchBox}"/>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="210">
+                                    <StackPanel x:Name="panelAnalysisContext"/>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                    </UniformGrid>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="02   Conditions and contacts">
+                <DockPanel Margin="6">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button x:Name="btnCheckAllConditions" Content="Select all"
+                                Style="{StaticResource SecondaryButton}" Margin="0,0,10,0"/>
+                        <Button x:Name="btnUncheckAllConditions" Content="Deselect all"
+                                Style="{StaticResource SecondaryButton}"/>
+                    </StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Left: Contacts to display, sole occupant of the column (visual priority) -->
+                        <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,5,0">
+                            <DockPanel>
+                                <!-- Filter by type (Frictional/Bonded/Other, based on the name prefix): brings
+                                     matching contacts to the top of the list without hiding the rest.
+                                     Takes the place of Select all/Deselect all (moved to the bottom, as
+                                     everywhere else: lower priority than the list content itself). -->
+                                <Grid DockPanel.Dock="Top">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Contacts to display" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11"/>
+                                        <ComboBox x:Name="cmbContactsFilter" Width="150" FontSize="11" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button x:Name="btnZoneCheckContacts" Content="Select all" Style="{StaticResource MiniButton}"/>
+                                    <Button x:Name="btnZoneUncheckContacts" Content="Deselect all" Style="{StaticResource MiniButton}"/>
+                                </StackPanel>
+                                <TextBox x:Name="searchContacts" DockPanel.Dock="Top" Style="{StaticResource SearchBox}"/>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel x:Name="panelContacts"/>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Right: the 4 other sections, lower priority, in a 2x2 layout -->
+                        <UniformGrid Grid.Column="1" Columns="2" Margin="5,0,0,0">
+                            <Border Style="{StaticResource CardBorder}" VerticalAlignment="Top">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Top" Text="Boundary Conditions" Style="{StaticResource CardTitle}"/>
+                                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                                        <Button x:Name="btnZoneCheckBoundaryConditions" Content="Select all" Style="{StaticResource MiniButton}"/>
+                                        <Button x:Name="btnZoneUncheckBoundaryConditions" Content="Deselect all" Style="{StaticResource MiniButton}"/>
+                                        <Button x:Name="btnZoneConfigBoundaryConditions" Content="Configure selection..." Style="{StaticResource MiniButton}" Margin="10,0,0,0"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="searchBoundaryConditions" DockPanel.Dock="Top" Style="{StaticResource SearchBox}"/>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="210">
+                                        <StackPanel x:Name="panelBoundaryConditions"/>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource CardBorder}" VerticalAlignment="Top">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Top" Text="Bolt Pretension" Style="{StaticResource CardTitle}"/>
+                                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                                        <Button x:Name="btnZoneCheckBoltPretension" Content="Select all" Style="{StaticResource MiniButton}"/>
+                                        <Button x:Name="btnZoneUncheckBoltPretension" Content="Deselect all" Style="{StaticResource MiniButton}"/>
+                                        <Button x:Name="btnZoneConfigBoltPretension" Content="Configure selection..." Style="{StaticResource MiniButton}" Margin="10,0,0,0"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="searchBoltPretension" DockPanel.Dock="Top" Style="{StaticResource SearchBox}"/>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="210">
+                                        <StackPanel x:Name="panelBoltPretension"/>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource CardBorder}" VerticalAlignment="Top">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Top" Text="Connection: Contact Tool" Style="{StaticResource CardTitle}"/>
+                                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                                        <Button x:Name="btnZoneCheckContactToolConnections" Content="Select all" Style="{StaticResource MiniButton}"/>
+                                        <Button x:Name="btnZoneUncheckContactToolConnections" Content="Deselect all" Style="{StaticResource MiniButton}"/>
+                                        <Button x:Name="btnZoneConfigContactToolConnections" Content="Configure selection..." Style="{StaticResource MiniButton}" Margin="10,0,0,0"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="searchContactToolConnections" DockPanel.Dock="Top" Style="{StaticResource SearchBox}"/>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="210">
+                                        <StackPanel x:Name="panelContactToolConnections"/>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource CardBorder}" VerticalAlignment="Top">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Top" Text="Solution Information" Style="{StaticResource CardTitle}"/>
+                                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                                        <Button x:Name="btnZoneCheckSolutionInfo" Content="Select all" Style="{StaticResource MiniButton}"/>
+                                        <Button x:Name="btnZoneUncheckSolutionInfo" Content="Deselect all" Style="{StaticResource MiniButton}"/>
+                                        <Button x:Name="btnZoneConfigSolutionInfo" Content="Configure selection..." Style="{StaticResource MiniButton}" Margin="10,0,0,0"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="searchSolutionInfo" DockPanel.Dock="Top" Style="{StaticResource SearchBox}"/>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="210">
+                                        <StackPanel x:Name="panelSolutionInfo"/>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </Border>
+                        </UniformGrid>
+                    </Grid>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="03   Result categories">
+                <DockPanel Margin="6">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button x:Name="btnCheckAllResults" Content="Select all"
+                                Style="{StaticResource SecondaryButton}" Margin="0,0,10,0"/>
+                        <Button x:Name="btnUncheckAllResults" Content="Deselect all"
+                                Style="{StaticResource SecondaryButton}"/>
+                    </StackPanel>
+                    <UniformGrid Columns="3">
+                        <Border Style="{StaticResource CardBorder}" VerticalAlignment="Top">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="Contact Tool Results" Style="{StaticResource CardTitle}"/>
+                                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button x:Name="btnZoneCheckContactTool" Content="Select all" Style="{StaticResource MiniButton}"/>
+                                    <Button x:Name="btnZoneUncheckContactTool" Content="Deselect all" Style="{StaticResource MiniButton}"/>
+                                    <Button x:Name="btnZoneConfigContactTool" Content="Configure selection..." Style="{StaticResource MiniButton}" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBox x:Name="searchContactTool" DockPanel.Dock="Top" Style="{StaticResource SearchBox}"/>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="210">
+                                    <StackPanel x:Name="panelContactTool"/>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardBorder}" VerticalAlignment="Top">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="Results" Style="{StaticResource CardTitle}"/>
+                                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button x:Name="btnZoneCheckResults" Content="Select all" Style="{StaticResource MiniButton}"/>
+                                    <Button x:Name="btnZoneUncheckResults" Content="Deselect all" Style="{StaticResource MiniButton}"/>
+                                    <Button x:Name="btnZoneConfigResults" Content="Configure selection..." Style="{StaticResource MiniButton}" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBox x:Name="searchResults" DockPanel.Dock="Top" Style="{StaticResource SearchBox}"/>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="210">
+                                    <StackPanel x:Name="panelResults"/>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardBorder}" VerticalAlignment="Top">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="Bolt Tool" Style="{StaticResource CardTitle}"/>
+                                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button x:Name="btnZoneCheckBoltTool" Content="Select all" Style="{StaticResource MiniButton}"/>
+                                    <Button x:Name="btnZoneUncheckBoltTool" Content="Deselect all" Style="{StaticResource MiniButton}"/>
+                                    <Button x:Name="btnZoneConfigBoltTool" Content="Configure selection..." Style="{StaticResource MiniButton}" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBox x:Name="searchBoltTool" DockPanel.Dock="Top" Style="{StaticResource SearchBox}"/>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="210">
+                                    <StackPanel x:Name="panelBoltTool"/>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                    </UniformGrid>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="04   Combined slide">
+                <Grid Margin="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="360"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left: template choice then cell grid (2x4, only the first N
+                         cells of the chosen template are active) -->
+                    <DockPanel Grid.Column="0" Margin="0,0,5,0" LastChildFill="True">
+                        <Border DockPanel.Dock="Top" Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Combined slide (different results)"
+                                           Style="{StaticResource CardTitle}" FontSize="16"/>
+                                <TextBlock Margin="0,0,0,10"
+                                           Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"
+                                           Text="Configurable grid based on the template: each cell displays a different result on the same slide."/>
+
+                                <!-- Dedicated, full-width row: the 5 template buttons (2/3/4/6/8) didn't
+                                     fit well on the same row as the counter/the "Add to report" button (the
+                                     last buttons ended up off-frame, invisible). WrapPanel in addition to
+                                     DockPanel.Dock="Top": wraps to a new line if the window is narrowed. -->
+                                <DockPanel LastChildFill="True">
+                                    <TextBlock DockPanel.Dock="Left" Text="TEMPLATE" VerticalAlignment="Center"
+                                               FontWeight="Bold" FontSize="11"
+                                               Foreground="{StaticResource TextMutedBrush}" Margin="0,0,10,0"/>
+                                    <WrapPanel x:Name="panelMultiResultTemplateButtons" Orientation="Horizontal"/>
+                                </DockPanel>
+
+                                <DockPanel LastChildFill="False" Margin="0,10,0,0">
+                                    <TextBlock x:Name="lblMultiResultFillCount" DockPanel.Dock="Left"
+                                               VerticalAlignment="Center" FontSize="11"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                    <Button x:Name="btnMultiResultAddToReport" DockPanel.Dock="Right"
+                                            Content="Add to report" Style="{StaticResource PrimaryButton}"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <!-- Width AND height fixed (not just the height): locks
+                                     the cell proportions (130x130, square) regardless of the
+                                     available width - a UniformGrid without an explicit Width stretches its
+                                     columns to fill the space, deforming the cells into rectangles. -->
+                                <UniformGrid x:Name="gridMultiResultCells" Columns="4" Rows="2"
+                                             Width="520" Height="260" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="lblMultiResultHint" Margin="0,10,0,0" FontSize="11"
+                                           TextWrapping="Wrap" Foreground="{StaticResource TextMutedBrush}"/>
+                            </StackPanel>
+                        </Border>
+                    </DockPanel>
+
+                    <!-- Right: configuration of the selected cell (result choice, then
+                         view/section/legend/appearance/scale factor - no separate window anymore) -->
+                    <Border Grid.Column="1" Style="{StaticResource CardBorder}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+                            <StackPanel x:Name="panelMultiResultSidePanel"/>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="05   Report preview">
+                <DockPanel Margin="6">
+                    <TextBlock DockPanel.Dock="Top" Text="Report generation order (drag and drop to reorder)"
+                               Style="{StaticResource CardTitle}" FontSize="16" Margin="0,0,0,10"/>
+                    <Border Background="{StaticResource PreviewBackgroundBrush}" CornerRadius="3"
+                            BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8">
+                            <WrapPanel x:Name="panelPreview" Background="Transparent"/>
+                        </ScrollViewer>
+                    </Border>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="06   Files">
+                <Grid Margin="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Top left: file paths -->
+                    <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource CardBorder}">
+                        <DockPanel>
+                            <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="File paths" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                                <Button x:Name="btnResetFilePaths" Content="Reset" Grid.Column="1"
+                                        Style="{StaticResource SecondaryButton}" Padding="8,3" FontSize="11"/>
+                            </Grid>
+
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <!-- Template: sensitive path, the whole generation depends on it -->
+                                    <Border Background="{StaticResource DangerLightBrush}" BorderBrush="{StaticResource DangerLightBorderBrush}"
+                                            BorderThickness="1" CornerRadius="3" Padding="6" Margin="0,0,0,6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="105"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Template (!):" FontWeight="Bold" FontSize="11"
+                                                       Foreground="#7A1E17" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="txtPathTemplate" Grid.Column="1" Style="{StaticResource DialogTextBox}"
+                                                     VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11" Padding="5,3"/>
+                                            <Button x:Name="btnBrowseTemplate" Content="..." Grid.Column="2"
+                                                    Style="{StaticResource SecondaryButton}" Padding="7,3" MinWidth="26" FontSize="11"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <Grid Margin="0,2,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="105"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Images:" VerticalAlignment="Center" FontSize="11"/>
+                                        <TextBox x:Name="txtPathImages" Grid.Column="1" Style="{StaticResource DialogTextBox}"
+                                                 VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11" Padding="5,3"/>
+                                        <Button x:Name="btnBrowseImages" Content="..." Grid.Column="2"
+                                                Style="{StaticResource SecondaryButton}" Padding="7,3" MinWidth="26" FontSize="11"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,2,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="105"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="CSV:" VerticalAlignment="Center" FontSize="11"/>
+                                        <TextBox x:Name="txtPathCsv" Grid.Column="1" Style="{StaticResource DialogTextBox}"
+                                                 VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11" Padding="5,3"/>
+                                        <Button x:Name="btnBrowseCsv" Content="..." Grid.Column="2"
+                                                Style="{StaticResource SecondaryButton}" Padding="7,3" MinWidth="26" FontSize="11"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,2,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="105"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Reports:" VerticalAlignment="Center" FontSize="11"/>
+                                        <TextBox x:Name="txtPathReports" Grid.Column="1" Style="{StaticResource DialogTextBox}"
+                                                 VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11" Padding="5,3"/>
+                                        <Button x:Name="btnBrowseReports" Content="..." Grid.Column="2"
+                                                Style="{StaticResource SecondaryButton}" Padding="7,3" MinWidth="26" FontSize="11"/>
+                                    </Grid>
+
+                                    <!-- Legends: in the current Ansys project's user_files/legend (falls back to
+                                         data/legend if the project was never saved) - never populated/generated
+                                         by this script - visually distinct from Template, prompts a manual check. -->
+                                    <Border Background="{StaticResource SecondaryBackgroundBrush}" BorderBrush="{StaticResource ButtonBorderBrush}"
+                                            BorderThickness="1" CornerRadius="3" Padding="6">
+                                        <StackPanel>
+                                            <TextBlock Text="Legends (project's user_files/legend - to check, not managed by this script):"
+                                                       FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                                       TextWrapping="Wrap" Margin="0,0,0,3"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox x:Name="txtPathLegends" Grid.Column="0" Style="{StaticResource DialogTextBox}"
+                                                         VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11" Padding="5,3"/>
+                                                <Button x:Name="btnBrowseLegends" Content="..." Grid.Column="1"
+                                                        Style="{StaticResource SecondaryButton}" Padding="7,3" MinWidth="26" FontSize="11"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Top right: data folder cleanup -->
+                    <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource CardBorder}">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="Data folder cleanup" Style="{StaticResource CardTitle}"/>
+                            <Button x:Name="btnDeleteAllData" DockPanel.Dock="Bottom" Content="Delete all"
+                                    Style="{StaticResource DangerButtonStrong}" Padding="10,10"
+                                    HorizontalAlignment="Stretch" Margin="0,8,0,0"/>
+                            <UniformGrid x:Name="panelDataCleanup" Columns="2" Rows="2"/>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Bottom left: available CSV files, as a list -->
+                    <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource CardBorder}">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="Available CSV files" Style="{StaticResource CardTitle}"/>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel x:Name="panelCsvFiles"/>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Bottom right: progress (thin, at the top) + access to the generated report -->
+                    <Border x:Name="borderReportStatus" Grid.Row="1" Grid.Column="1" Style="{StaticResource CardBorder}">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="Generation and report" Style="{StaticResource CardTitle}"/>
+                            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                                <Border x:Name="progressTrack" Background="{StaticResource InputBackgroundBrush}"
+                                        BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1"
+                                        CornerRadius="3" Height="8">
+                                    <Border x:Name="progressFill" Background="{StaticResource AccentBrush}"
+                                            CornerRadius="3" HorizontalAlignment="Left" Width="0"/>
+                                </Border>
+                                <TextBlock x:Name="lblProgressStatus" Text="Waiting for generation" FontSize="11"
+                                           Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <Border x:Name="borderReportTile" Background="{StaticResource SecondaryBackgroundBrush}"
+                                    CornerRadius="3" Padding="12,10" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    MinWidth="220" MaxWidth="320">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock x:Name="lblReportName" Text="No report generated"
+                                               TextTrimming="CharacterEllipsis" TextAlignment="Center" Margin="0,0,0,8"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <Button x:Name="btnReportView" Content="Open" Style="{StaticResource SecondaryButton}"
+                                                IsEnabled="False" Padding="10,5" FontSize="11" Margin="0,0,6,0"/>
+                                        <Button x:Name="btnReportShowInFolder" Content="Show in folder"
+                                                Style="{StaticResource SecondaryButton}" IsEnabled="False" Padding="10,5" FontSize="11"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            </TabControl>
+
+            <!-- Global side panel for configuration ("SETTINGS") -->
+            <Border x:Name="borderConfigPanel" Grid.Column="1" Style="{StaticResource CardBorder}"
+                    Width="360" Visibility="Collapsed">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+                    <StackPanel x:Name="panelConfigPanel"/>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+    </DockPanel>
+</Window>
